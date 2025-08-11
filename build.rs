@@ -1,4 +1,5 @@
 extern crate prost_build;
+use std::fs;
 
 fn main() {
     prost_build::compile_protos(
@@ -27,8 +28,18 @@ fn main() {
         println!("cargo:rustc-link-search=native={}/lib", ortools_prefix);
 
         // Link with OR-Tools libraries
-        println!("cargo::rustc-link-lib=ortools");
-        println!("cargo::rustc-link-lib=libprotobuf");
-        println!("cargo::rustc-link-lib=libprotoc");
+        let lib_dir = format!("{}/lib", ortools_prefix);
+        if let Ok(entries) = fs::read_dir(&lib_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext == "lib" {
+                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                            println!("cargo::rustc-link-lib={}", stem);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
