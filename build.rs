@@ -1,5 +1,4 @@
 extern crate prost_build;
-use std::fs;
 
 fn main() {
     prost_build::compile_protos(
@@ -28,18 +27,12 @@ fn main() {
         println!("cargo:rustc-link-search=native={}/lib", ortools_prefix);
 
         // Link with OR-Tools libraries
-        let lib_dir = format!("{}/lib", ortools_prefix);
-        if let Ok(entries) = fs::read_dir(&lib_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if let Some(ext) = path.extension() {
-                    if ext == "lib" {
-                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                            println!("cargo::rustc-link-lib={}", stem);
-                        }
-                    }
-                }
-            }
+        let lib_pattern = format!("{}/lib/*.lib", ortools_prefix);
+        for entry in glob::glob(&lib_pattern).expect("Invalid glob pattern") {
+            let entry = entry.expect("Invalid entry");
+            let file_stem = entry.file_stem().expect("Invalid file stem");
+            let stem = file_stem.to_str().expect("Invalid file stem");
+            println!("cargo:rustc-link-lib={}", stem);
         }
     }
 }
