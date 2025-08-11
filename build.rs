@@ -28,7 +28,7 @@ fn main() {
 
         // Link with OR-Tools libraries
         println!("cargo::rustc-link-lib=ortools");
-        println!("cargo::rustc-link-lib=protobuf");
-        println!("cargo::rustc-link-lib=protoc");
+        println!("cargo::rustc-link-lib=libprotobuf");
+        println!("cargo::rustc-link-lib=libprotoc");
     }
 }
