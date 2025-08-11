@@ -11,9 +11,14 @@ fn main() {
         let ortools_prefix = std::env::var("ORTOOLS_PREFIX")
             .ok()
             .unwrap_or_else(|| "/opt/ortools".into());
-        cc::Build::new()
-            .cpp(true)
-            .flag("-std=c++17")
+        let mut builder = cc::Build::new();
+        builder.cpp(true);
+        if cfg!(target_os = "windows") && cfg!(target_env = "msvc") {
+            builder.flag("/std:c++20");
+        } else {
+            builder.flag("-std=c++20");
+        }
+        builder
             .file("src/cp_sat_wrapper.cpp")
             .include(&[&ortools_prefix, "/include"].concat())
             .compile("cp_sat_wrapper.a");
