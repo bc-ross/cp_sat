@@ -8,5 +8,4 @@ google or-tools library files.
 If you're using a recent version of or-tools, you'll also need libprotobuf (older versions used to link it statically). Invoke Cargo using `RUSTFLAGS='-Clink-arg=-lprotobuf' cargo <command>`.
 
 The environment variable `ORTOOLS_PREFIX` is used to find include
-files and library files. If not setted, `/opt/ortools` will be added
-to the search path (classical search path will also be used).
+files and library files. If not set, the build script will automatically download an OR-Tools prebuilt binary for your system (if supported).
