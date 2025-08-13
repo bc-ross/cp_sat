@@ -4,7 +4,7 @@ version = "0.3.3"
 edition = "2018"
 description = "Rust bindings to the Google CP-SAT constraint programming solver."
 documentation = "https://docs.rs/cp_sat"
-repository = "https://github.com/KardinalAI/cp_sat"
+repository = "https://github.com/bc-ross/cp_sat"
 license = "Apache-2.0"
 keywords = ["constraint", "programming", "CP"]
 categories = ["api-bindings", "mathematics", "science"]
@@ -20,3 +20,6 @@ smallvec = { version = "1.6.1", default-features = false, features = ["union"] }
 prost-build = { version = "0.8" }
 cc = "1.0"
 glob = "0.3"
+flate2 = "^1.1.2"
+tar = "^0.4.44"
+ureq = "^2.12.1"

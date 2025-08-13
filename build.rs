@@ -1,5 +1,81 @@
 extern crate prost_build;
 
+use std::{env, path::PathBuf};
+
+use flate2::read::GzDecoder;
+use tar::Archive;
+
+struct Repository {
+    path: PathBuf,
+}
+
+impl Repository {
+    fn try_new() -> Option<Self> {
+        if !cfg!(feature = "build-force")
+            && env::var("DEP_ORTOOLS_LIB").is_ok()
+            && env::var("DEP_ORTOOLS_INCLUDE").is_ok()
+        {
+            None
+        } else {
+            Some(Self::download())
+        }
+    }
+
+    fn download() -> Self {
+        // Configure
+        const PREFIX: &str = concat!(
+            "or-tools-",
+            env!("CARGO_PKG_VERSION_MAJOR"),
+            ".",
+            env!("CARGO_PKG_VERSION_MINOR"),
+        );
+        const URL: &str = concat!(
+            "https://github.com/google/or-tools/archive/refs/tags/",
+            "v",
+            env!("CARGO_PKG_VERSION_MAJOR"),
+            ".",
+            env!("CARGO_PKG_VERSION_MINOR"),
+            ".tar.gz",
+        );
+
+        let path = PathBuf::from(
+            env::var("OUT_DIR").expect("failed to get environment variable: OUT_DIR"),
+        );
+
+        // Download source code
+        let file = {
+            let response = ::ureq::get(URL)
+                .call()
+                .expect("failed to download source code");
+
+            if response.status() != 200 {
+                let code = response.status_text();
+                panic!("failed to download source code {URL:?}: status code {code}");
+            }
+
+            response.into_reader()
+        };
+
+        // Extract the download file
+        let mut archive = Archive::new(GzDecoder::new(file));
+        archive
+            .entries()
+            .expect("failed to get entries from downloaded file")
+            .filter_map(Result::ok)
+            .for_each(|mut entry| {
+                if let Some(path) = entry
+                    .path()
+                    .ok()
+                    .and_then(|p| p.strip_prefix(PREFIX).ok().map(|p| path.join(p)))
+                {
+                    entry.unpack(path).expect("failed to extract file");
+                }
+            });
+
+        Self { path }
+    }
+}
+
 fn main() {
     prost_build::compile_protos(
         &["src/cp_model.proto", "src/sat_parameters.proto"],
