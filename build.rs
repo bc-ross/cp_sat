@@ -12,6 +12,62 @@ struct Repository {
     path: PathBuf,
 }
 
+fn get_wrapper_os() -> Result<&'static str> {
+    Ok(match std::env::var("TARGET")?.as_str() {
+                "x86_64-pc-windows-msvc" => "x64_VisualStudio2022",
+                "aarch64-unknown-linux-gnu" => "aarch64_AlmaLinux-8.10",
+                "x86_64-unknown-linux-gnu" => {
+                    use os_info::Type::*;
+                    match os_info::get().os_type() {
+                        Ubuntu => {
+                            use os_info::Version::*;
+                            match os_info::get().version() {
+                                Semantic(maj, min, patch) => {
+                                    match (maj, min, patch) {
+                                        (22, 04, _) => "amd64_Ubuntu-22.04",
+                                        (23, 04, _) => "amd64_Ubuntu-23.04",
+                                        (23, 10, _) => "amd64_Ubuntu-23.10",
+                                        _ => "amd64_Ubuntu-22.04", // Try lowest supported version
+                                    }
+                                }
+                                _ => "amd64_Ubuntu-22.04", // Try lowest supported version
+                            }
+                        },
+                        _ => return Err(anyhow!("unsupported linux flavor: {}", os_info::get().os_type())),
+                    }
+                }
+                _ => return Err(anyhow!("unsupported target: {}", std::env::var("TARGET").unwrap())),
+            })
+}
+
+fn get_dir_os() -> Result<&'static str> {
+    Ok(match std::env::var("TARGET")?.as_str() {
+                "x86_64-pc-windows-msvc" => "x64_VisualStudio2022",
+                "aarch64-unknown-linux-gnu" => "aarch64_AlmaLinux-8.10",
+                "x86_64-unknown-linux-gnu" => {
+                    use os_info::Type::*;
+                    match os_info::get().os_type() {
+                        Ubuntu => {
+                            use os_info::Version::*;
+                            match os_info::get().version() {
+                                Semantic(maj, min, patch) => {
+                                    match (maj, min, patch) {
+                                        (22, 04, _) => "x86_64_Ubuntu-22.04",
+                                        (23, 04, _) => "x86_64_Ubuntu-23.04",
+                                        (23, 10, _) => "x86_64_Ubuntu-23.10",
+                                        _ => "x86_64_Ubuntu-22.04", // Try lowest supported version
+                                    }
+                                }
+                                _ => "x86_64_Ubuntu-22.04", // Try lowest supported version
+                            }
+                        },
+                        _ => return Err(anyhow!("unsupported linux flavor: {}", os_info::get().os_type())),
+                    }
+                }
+                _ => return Err(anyhow!("unsupported target: {}", std::env::var("TARGET").unwrap())),
+            })
+}
+
 impl Repository {
     fn get() -> Result<Self> {
         if let Ok(s) = env::var("ORTOOLS_PREFIX") {
@@ -47,11 +103,7 @@ impl Repository {
         let URL = format!(
             "https://github.com/google/or-tools/releases/download/v{}/or-tools_{}_cpp_v{}.{}.{}",
             ortools_version.as_str().ok_or(anyhow!("failed to get ortools version as string"))?,
-            match std::env::var("TARGET")?.as_str() {
-                "x86_64-pc-windows-msvc" => "x64_VisualStudio2022",
-                "aarch64-unknown-linux-gnu" => "aarch64_AlmaLinux-8.10",
-                _ => return Err(anyhow!("unsupported target: {}", std::env::var("TARGET").unwrap())),
-            },
+            get_wrapper_os()?,
             ortools_version.as_str().ok_or(anyhow!("failed to get ortools version as string"))?,
             ortools_patch.as_str().ok_or(anyhow!("failed to get ortools patch as string"))?,
             cfg!(target_os = "windows")
@@ -61,11 +113,7 @@ impl Repository {
 
         let DIR = format!(
             "or-tools_{}_cpp_v{}.{}",
-            match std::env::var("TARGET")?.as_str() {
-                "x86_64-pc-windows-msvc" => "x64_VisualStudio2022",
-                "aarch64-unknown-linux-gnu" => "aarch64_AlmaLinux-8.10",
-                _ => return Err(anyhow!("unsupported target: {}", std::env::var("TARGET").unwrap())),
-            },
+            get_dir_os()?,
             ortools_version.as_str().ok_or(anyhow!("failed to get ortools version as string"))?,
             ortools_patch.as_str().ok_or(anyhow!("failed to get ortools patch as string"))?,
         );
@@ -110,19 +158,7 @@ impl Repository {
             }
         } else {
             let mut archive = Archive::new(GzDecoder::new(file));
-            archive
-            .entries()
-            .expect("failed to get entries from downloaded file")
-            .filter_map(Result::ok)
-            .for_each(|mut entry| {
-                if let Some(path) = entry
-                .path()
-                .ok()
-                .and_then(|p| p.strip_prefix(&PREFIX).ok().map(|p| path.join(p)))
-                {
-                entry.unpack(path).expect("failed to extract file");
-                }
-            });
+            archive.unpack(&path)?;
         }
 
         Ok(Self { path: path.join(&DIR) })
