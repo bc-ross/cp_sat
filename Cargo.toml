@@ -27,6 +27,7 @@ ureq = "^2.12.1"
 cargo_metadata = "^0.21.0"
 zip = "^4.3.0"
 os_info = { version = "^3.12.0", default-features = false }
+pathdiff = "^0.2.3"
 
 [package.metadata]
 ortools_version = "9.9"

@@ -166,6 +166,10 @@ impl Repository {
 }
 
 fn main() {
+    println!("cargo::rerun-if-changed=./build.rs");
+    println!("cargo::rerun-if-changed=./src/**/*.rs");
+    println!("cargo::rerun-if-changed=./src/**/*.proto");
+
     prost_build::compile_protos(
         &["src/cp_model.proto", "src/sat_parameters.proto"],
         &["src/"],
@@ -187,16 +191,31 @@ fn main() {
             .include(&[dbg!(&ortools_prefix), "/include"].concat())
             .compile("cp_sat_wrapper.a");
 
-        // println!("cargo:rustc-link-lib=dylib=ortools");
-        println!("cargo:rustc-link-search=native={}/lib", ortools_prefix);
+        println!("cargo::rustc-link-search=native={}/lib", ortools_prefix);
 
-        // Link with OR-Tools libraries
-        let lib_pattern = format!("{}/lib/*.lib", ortools_prefix);
-        for entry in glob::glob(&lib_pattern).expect("Invalid glob pattern") {
-            let entry = entry.expect("Invalid entry");
-            let file_stem = entry.file_stem().expect("Invalid file stem");
-            let stem = file_stem.to_str().expect("Invalid file stem");
-            println!("cargo:rustc-link-lib={}", stem);
+        if cfg!(target_os = "windows") {
+            let lib_pattern = format!("{}/lib/*.lib", ortools_prefix);
+            for entry in glob::glob(&lib_pattern).expect("Invalid glob pattern") {
+                let entry = entry.expect("Invalid entry");
+                let file_stem = entry.file_stem().expect("Invalid file stem");
+                let stem = file_stem.to_str().expect("Invalid file string representation");
+                println!("cargo::rustc-link-lib={}", stem);
+            }
+        } else {
+            let lib_pattern = format!("{}/lib/*.a", ortools_prefix);
+            for entry in glob::glob(&lib_pattern).expect("Invalid glob pattern") {
+                let entry = entry.expect("Invalid entry");
+                let file_stem = entry.file_stem().expect("Invalid file stem");
+                let stem = file_stem.to_str().expect("Invalid file string representation").trim_start_matches("lib");
+                println!("cargo::rustc-link-lib=static={}", stem);
+            }     
+            let lib_pattern = format!("{}/lib/*.so", ortools_prefix);
+            for entry in glob::glob(&lib_pattern).expect("Invalid glob pattern") {
+                let entry = entry.expect("Invalid entry");
+                let file_stem = entry.file_stem().expect("Invalid file stem");
+                let stem = file_stem.to_str().expect("Invalid file string representation").trim_start_matches("lib");
+                println!("cargo::rustc-link-lib=dylib={}", stem);
+            }    
         }
     }
 }
